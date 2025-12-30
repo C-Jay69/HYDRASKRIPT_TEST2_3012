@@ -1,0 +1,269 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?
+  role      String   @default("user") // user, admin
+  membershipType String? @default("free") // free, basic, premium
+  membershipStatus String @default("active") // active, suspended, cancelled
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  books     Book[]
+  orders    Order[]
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Manuscript Processing Models
+model Manuscript {
+  id          String   @id @default(cuid())
+  filename    String
+  fileSize    Int
+  mimeType    String
+  status      String   @default("pending") // pending, processing, completed, failed
+  totalPages  Int?
+  wordCount   Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  chunks      Chunk[]
+  jobs        ProcessingJob[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Chunk {
+  id          String    @id @default(cuid())
+  manuscriptId String
+  chunkIndex  Int
+  content     String
+  status      String    @default("pending") // pending, processing, completed, failed
+  retryCount  Int       @default(0)
+  lastUsedProvider String?
+  response    String?
+  errorMessage String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  manuscript  Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+
+  @@index([manuscriptId])
+  @@index([status])
+}
+
+model ProcessingJob {
+  id          String   @id @default(cuid())
+  manuscriptId String
+  status      String   @default("pending") // pending, in_progress, completed, failed
+  totalChunks Int      @default(0)
+  completedChunks Int   @default(0)
+  failedChunks Int     @default(0)
+  systemPrompt String?
+  errorMessage String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  manuscript  Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  attempts    ProviderAttempt[]
+
+  @@index([manuscriptId])
+  @@index([status])
+}
+
+model ProviderAttempt {
+  id            String   @id @default(cuid())
+  jobId         String
+  chunkId       String?
+  providerName  String   // main, backup1, backup2
+  status        String   // success, failed
+  errorMessage  String?
+  retryCount    Int      @default(0)
+  responseTime  Int?     // milliseconds
+  createdAt     DateTime @default(now())
+
+  job           ProcessingJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([providerName])
+  @@index([status])
+}
+
+// Book Generation Models
+model Book {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  category    String   // EBOOK, NOVEL, KIDS_STORY, COLORING_BOOK, BLANK_NOTEBOOK
+  status      String   @default("draft") // draft, generating, completed, published, failed
+  description String?
+  coverImage  String?
+  pageCount   Int      @default(0)
+  wordCount   Int?
+  
+  // Category-specific settings
+  pageSize    String?  // "6x9", "8x10"
+  styleAdaptation Boolean? @default(false) // For novels
+  imageStyle  String?  // "disney", "pixar", "dreamworks", etc.
+  coloringTheme String? // For coloring books
+  
+  systemPrompt String?
+  userPrompt  String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pages       Page[]
+  images      GeneratedImage[]
+  orderItems  OrderItem[]
+
+  @@index([userId])
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Page {
+  id          String   @id @default(cuid())
+  bookId      String
+  pageNumber  Int
+  content     String?
+  imageUrl    String?  // For coloring books or kids stories
+  pageType    String?  // "text", "image", "blank", "coloring"
+  
+  // For coloring pages
+  lineArtUrl  String?  // Black and white version
+  coloredUrl  String?  // Colored version
+  
+  status      String   @default("pending") // pending, generating, completed, failed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  book        Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([bookId])
+  @@index([pageNumber])
+  @@index([status])
+}
+
+model GeneratedImage {
+  id          String   @id @default(cuid())
+  bookId      String
+  pageId      String?
+  imageUrl    String
+  prompt      String
+  imageStyle  String?  // disney, pixar, dreamworks, line_art, etc.
+  width       Int?
+  height      Int?
+  status      String   @default("pending") // pending, generating, completed, failed
+  createdAt   DateTime @default(now())
+
+  book        Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([bookId])
+  @@index([status])
+}
+
+// Payment and Orders
+model Order {
+  id          String   @id @default(cuid())
+  userId      String
+  orderNumber String   @unique
+  status      String   @default("pending") // pending, processing, completed, cancelled, refunded
+  
+  subtotal    Float
+  tax         Float    @default(0)
+  total       Float
+  currency    String   @default("USD")
+  
+  paymentMethod String?
+  paymentId   String?
+  paymentStatus String?  @default("pending") // pending, paid, failed, refunded
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       OrderItem[]
+
+  @@index([userId])
+  @@index([orderNumber])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  bookId      String
+  quantity    Int      @default(1)
+  price       Float
+  
+  createdAt   DateTime @default(now())
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  book        Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([bookId])
+}
+
+// Admin Credentials
+model Admin {
+  id          String   @id @default(cuid())
+  userId      String   @unique  // Links to User table
+  permissions String?  @default("[]") // JSON string array of permission strings
+  lastLogin   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Pricing Plans
+model PricingPlan {
+  id          String   @id @default(cuid())
+  name        String   @unique // free, basic, premium
+  price       Float
+  currency    String   @default("USD")
+  interval    String   // monthly, yearly
+  
+  // Features
+  maxBooks    Int      @default(1)
+  maxPagesPerBook Int   @default(50)
+  imageGeneration Boolean @default(false)
+  premiumTemplates Boolean @default(false)
+  supportLevel String  @default("basic") // basic, priority, dedicated
+  
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([isActive])
+}
