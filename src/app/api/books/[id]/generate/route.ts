@@ -195,15 +195,14 @@ async function generateBookContent(bookId: string, book: any) {
     }
 
     // Generate cover art if needed
-    if (book.category === 'KIDS_STORY' || book.category === 'NOVEL' || book.category === 'EBOOK') {
-      console.log(`[Book ${bookId}] Generating cover art`);
-      const coverPrompt = `Create a professional book cover for "${book.title}". Genre: ${book.category}.`;
+    if (book.hasCover) {
+      const coverPrompt = `Create a book cover for "${book.title}". Style: ${book.imageStyle}`;
       const coverResult = await generateBookImage(
         {
           prompt: coverPrompt,
           style: book.imageStyle,
           bookId,
-          pageId: `cover-${bookId}`,
+          pageId: 'cover',
         },
         book.category
       );
