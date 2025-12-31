@@ -149,14 +149,15 @@ class BookImageGenerator {
     category: string,
     style?: string
   ): Promise<GeneratedImage> {
+    const promptText = `Book cover illustration for "${title}", ${category} genre, ${style || 'digital_art'} style, eye-catching, colorful, high quality`;
+    
     try {
       await this.initialize();
 
-      const prompt = `Book cover illustration for "${title}", ${category} genre, ${style || 'digital_art'} style, eye-catching, colorful, high quality`;
       const size = '1152x864';
 
       const response = await this.zai!.images.generations.create({
-        prompt,
+        prompt: promptText,
         size: size as any,
       });
 
@@ -170,13 +171,13 @@ class BookImageGenerator {
       return {
         success: true,
         imageUrl: `/generated-images/${filename}`,
-        prompt,
+        prompt: promptText,
         style,
       };
     } catch (error: any) {
       return {
         success: false,
-        prompt,
+        prompt: promptText,
         style,
         error: error?.message || 'Cover art generation failed',
       };
@@ -232,6 +233,8 @@ export async function generateBookImage(
 ): Promise<GeneratedImage> {
   const generator = getImageGenerator();
 
+  
+
   if (category === 'COLORING_BOOK') {
     return generator.generateColoringPage(options);
   } else if (category === 'KIDS_STORY') {
@@ -239,4 +242,16 @@ export async function generateBookImage(
   } else {
     return generator.generateColoringPage(options);
   }
+}
+
+/**
+ * Generate cover art for a book
+ */
+export async function generateCoverArtFunction(
+  title: string,
+  category: string,
+  style?: string
+): Promise<GeneratedImage> {
+  const generator = getImageGenerator();
+  return generator.generateCoverArt(title, category, style);
 }
