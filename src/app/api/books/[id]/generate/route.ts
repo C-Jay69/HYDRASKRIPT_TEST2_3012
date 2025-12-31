@@ -82,7 +82,7 @@ async function generateBookContent(bookId: string, book: any) {
 
     // Generate content for each page
     for (const page of book.pages) {
-      console.log(`[Book ${bookId}] Generating page ${page.pageNumber}`);
+      console.log(`[Book ${bookId}] generating page ${page.pageNumber}`);
 
       await db.page.update({
         where: { id: page.id },
