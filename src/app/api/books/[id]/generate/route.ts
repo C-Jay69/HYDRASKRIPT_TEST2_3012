@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getUserFromAuthHeader } from '@/lib/auth';
 import { getLLMService } from '@/lib/llm-fallback-service';
 import { generateBookImage } from '@/lib/book-image-generator';
+import { generateBookAudio } from '@/lib/audio-generator';
 
 /**
  * POST /api/books/[id]/generate
@@ -110,6 +111,25 @@ async function generateBookContent(bookId: string, book: any) {
                 updatedAt: new Date(),
               },
             });
+
+            // Generate Audio if requested
+            if (book.hasAudio || book.category === 'AUDIO_BOOK') {
+              const audioResult = await generateBookAudio({
+                text: result.response,
+                voice: book.audioVoice || 'alloy',
+                bookId,
+                pageId: page.id,
+              });
+
+              if (audioResult.success) {
+                await db.page.update({
+                  where: { id: page.id },
+                  data: {
+                    audioUrl: audioResult.audioUrl,
+                  },
+                });
+              }
+            }
           } else {
             await db.page.update({
               where: { id: page.id },
@@ -249,13 +269,18 @@ async function generateBookContent(bookId: string, book: any) {
  * Build prompt for text content generation
  */
 function buildPagePrompt(book: any, page: any): string {
+  const styleInstruction = book.authorStyle 
+    ? `Write in the style of ${book.authorStyle}.` 
+    : (book.styleAdaptation ? 'Use a literary, sophisticated style.' : '');
+
   const pagePrompts: Record<string, string> = {
-    EBOOK: `Write page ${page.pageNumber} for an e-book titled "${book.title}". Make it engaging and informative.`,
-    NOVEL: `Write page ${page.pageNumber} for a novel titled "${book.title}". ${book.styleAdaptation ? 'Use a literary, sophisticated style.' : ''} Create engaging narrative with good pacing.`,
-    KIDS_STORY: `Write page ${page.pageNumber} for a children's story book titled "${book.title}". Use simple language, short sentences, and make it fun for kids. The next page will have an illustration.`,
+    EBOOK: `Write page ${page.pageNumber} for an e-book titled "${book.title}". Make it engaging and informative. ${styleInstruction}`,
+    NOVEL: `Write page ${page.pageNumber} for a novel titled "${book.title}". ${styleInstruction} Create engaging narrative with good pacing.`,
+    KIDS_STORY: `Write page ${page.pageNumber} for a children's story book titled "${book.title}". Use simple language, short sentences, and make it fun for kids. ${styleInstruction} The next page will have an illustration.`,
+    AUDIO_BOOK: `Write script for page ${page.pageNumber} of an audio book titled "${book.title}". Write in a clear, spoken-word style suitable for narration. ${styleInstruction}`,
   };
 
-  return pagePrompts[book.category] || `Write page ${page.pageNumber} for a book titled "${book.title}".`;
+  return pagePrompts[book.category] || `Write page ${page.pageNumber} for a book titled "${book.title}". ${styleInstruction}`;
 }
 
 /**

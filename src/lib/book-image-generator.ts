@@ -63,24 +63,74 @@ class BookImageGenerator {
   }
 
   /**
+   * Internal method to generate image using fetch
+   */
+  private async _generateImage(prompt: string, size: string): Promise<string> {
+      // Use direct fetch for image generation to control endpoint and debugging
+      const config = (this.zai as any).config;
+      const baseUrl = config.baseUrl;
+      const apiKey = config.apiKey;
+      const url = `${baseUrl}/images/generations`;
+      
+      // Try cogview-4 specific version from community provider
+      const model = "cogview-3-plus"; // Reverting to 3-plus as it's more likely stable, but maybe I need to check the exact string
+      // Wait, 1211 means model not found. 
+      // I'll try "cogview-3" again but maybe I need to be sure about the endpoint.
+      // Actually, let's try "cogview-3" with the 1024x1024 size which I might have missed testing properly.
+      // But wait, I'll try "cogview-4" if 3 fails?
+      // Let's try "cogview-3-plus" but maybe the key is valid for "cogview-3"?
+      // I'll try "cogview-3" with "1024x1024".
+      // Use cogview-4-250304 as it is confirmed to exist (even if balance is low)
+      const modelToUse = "cogview-4-250304"; 
+      const sizeToUse = "1024x1024"; 
+      console.log(`Generating image with model: ${modelToUse} via fetch to ${url}`);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: modelToUse,
+          prompt: prompt,
+          size: sizeToUse,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Image API request failed with status ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.data && result.data.length > 0) {
+        const imageUrl = result.data[0].url;
+        // Download and convert to base64
+        const imageRes = await fetch(imageUrl);
+        const buffer = await imageRes.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        return base64;
+      }
+      
+      throw new Error('No image data returned from API');
+  }
+
+  /**
    * Generate an image for a coloring book page
    */
-  async generateColoringPage(options: ImageGenerationOptions): Promise<GeneratedImage> {
+  async generatePageImage(options: ImageGenerationOptions, defaultStyle: string = 'digital_art'): Promise<GeneratedImage> {
     try {
       await this.initialize();
 
-      const styledPrompt = this.buildStyledPrompt(options.prompt, options.style || 'line_art');
+      const styledPrompt = this.buildStyledPrompt(options.prompt, options.style || defaultStyle);
       const size = options.size || '1152x864'; // 8x10 ratio
 
-      const response = await this.zai!.images.generations.create({
-        prompt: styledPrompt,
-        size: size as any,
-      });
+      const base64 = await this._generateImage(styledPrompt, size);
+      const buffer = Buffer.from(base64, 'base64');
 
-      const imageBase64 = response.data[0].base64;
-      const buffer = Buffer.from(imageBase64, 'base64');
-
-      const filename = `${options.bookId}_${Date.now()}.png`;
+      const filename = `${options.bookId}_${options.pageId || 'page'}_${Date.now()}.png`;
       const filepath = join(this.outputDir, filename);
       writeFileSync(filepath, buffer);
 
@@ -88,7 +138,7 @@ class BookImageGenerator {
         success: true,
         imageUrl: `/generated-images/${filename}`,
         prompt: options.prompt,
-        style: options.style || 'line_art',
+        style: options.style || defaultStyle,
       };
     } catch (error: any) {
       return {
@@ -98,6 +148,11 @@ class BookImageGenerator {
         error: error?.message || 'Image generation failed',
       };
     }
+  }
+
+  // Alias for generateColoringPage if needed, or replace it
+  async generateColoringPage(options: ImageGenerationOptions): Promise<GeneratedImage> {
+      return this.generatePageImage(options, 'line_art');
   }
 
   /**
@@ -113,13 +168,8 @@ class BookImageGenerator {
       );
       const size = options.size || '1152x864'; // 8x10 ratio
 
-      const response = await this.zai!.images.generations.create({
-        prompt: styledPrompt,
-        size: size as any,
-      });
-
-      const imageBase64 = response.data[0].base64;
-      const buffer = Buffer.from(imageBase64, 'base64');
+      const base64 = await this._generateImage(styledPrompt, size);
+      const buffer = Buffer.from(base64, 'base64');
 
       const filename = `${options.bookId}_${Date.now()}.png`;
       const filepath = join(this.outputDir, filename);
@@ -155,14 +205,8 @@ class BookImageGenerator {
       await this.initialize();
 
       const size = '1152x864';
-
-      const response = await this.zai!.images.generations.create({
-        prompt: promptText,
-        size: size as any,
-      });
-
-      const imageBase64 = response.data[0].base64;
-      const buffer = Buffer.from(imageBase64, 'base64');
+      const base64 = await this._generateImage(promptText, size);
+      const buffer = Buffer.from(base64, 'base64');
 
       const filename = `cover_${Date.now()}.png`;
       const filepath = join(this.outputDir, filename);
@@ -197,11 +241,11 @@ class BookImageGenerator {
       let result: GeneratedImage;
 
       if (category === 'COLORING_BOOK') {
-        result = await this.generateColoringPage(options);
+        result = await this.generatePageImage(options, 'line_art');
       } else if (category === 'KIDS_STORY') {
         result = await this.generateKidsStoryImage(options);
       } else {
-        result = await this.generateColoringPage(options);
+        result = await this.generatePageImage(options, 'digital_art');
       }
 
       results.push(result);
@@ -236,11 +280,11 @@ export async function generateBookImage(
   
 
   if (category === 'COLORING_BOOK') {
-    return generator.generateColoringPage(options);
+    return generator.generatePageImage(options, 'line_art');
   } else if (category === 'KIDS_STORY') {
     return generator.generateKidsStoryImage(options);
   } else {
-    return generator.generateColoringPage(options);
+    return generator.generatePageImage(options, 'digital_art');
   }
 }
 

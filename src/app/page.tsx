@@ -27,11 +27,12 @@ import {
   Image as ImageIcon,
   FileText,
   CreditCard,
+  Mic,
 } from 'lucide-react'
 import { BOOK_CATEGORIES, COLORING_THEMES, IMAGE_STYLES } from '@/lib/book-types'
 
 // Types
-type BookCategory = 'EBOOK' | 'NOVEL' | 'KIDS_STORY' | 'COLORING_BOOK' | 'BLANK_NOTEBOOK'
+type BookCategory = 'EBOOK' | 'NOVEL' | 'KIDS_STORY' | 'COLORING_BOOK' | 'BLANK_NOTEBOOK' | 'AUDIO_BOOK'
 
 interface User {
   id: string
@@ -84,6 +85,8 @@ export default function BookPlatform() {
     userPrompt: '',
     imageStyle: 'pixar',
     coloringTheme: 'Mandalas',
+    authorStyle: '',
+    hasAudio: false,
   })
 
   useEffect(() => {
@@ -233,6 +236,8 @@ export default function BookPlatform() {
           userPrompt: '',
           imageStyle: 'pixar',
           coloringTheme: 'Mandalas',
+          authorStyle: '',
+          hasAudio: false,
         })
         alert('Book created successfully!')
       } else {
@@ -577,6 +582,7 @@ export default function BookPlatform() {
                               {category.id === 'EBOOK' && <FileText className="h-4 w-4" />}
                               {category.id === 'NOVEL' && <BookOpen className="h-4 w-4" />}
                               {category.id === 'BLANK_NOTEBOOK' && <BookOpen className="h-4 w-4" />}
+                              {category.id === 'AUDIO_BOOK' && <Mic className="h-4 w-4" />}
                               <span className="font-medium">{category.name}</span>
                             </div>
                             <p className="text-xs text-muted-foreground">
@@ -669,6 +675,35 @@ export default function BookPlatform() {
                         />
                         <label htmlFor="style-adaptation" className="text-sm">
                           Enable AI style adaptation for literary tone
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Author Writing Style */}
+                    {(newBook.category === 'NOVEL' || newBook.category === 'EBOOK' || newBook.category === 'KIDS_STORY' || newBook.category === 'AUDIO_BOOK') && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Author Writing Style (Optional)</label>
+                        <Input
+                          placeholder="e.g., Hemingway, Dr. Seuss, JK Rowling..."
+                          value={newBook.authorStyle}
+                          onChange={(e) => setNewBook({ ...newBook, authorStyle: e.target.value })}
+                        />
+                      </div>
+                    )}
+
+                    {/* Audio Generation Option */}
+                    {newBook.category !== 'AUDIO_BOOK' && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="has-audio"
+                          checked={newBook.hasAudio || false}
+                          onChange={(e) =>
+                            setNewBook({ ...newBook, hasAudio: e.target.checked })
+                          }
+                        />
+                        <label htmlFor="has-audio" className="text-sm">
+                          Generate Audio Narration (TTS)
                         </label>
                       </div>
                     )}

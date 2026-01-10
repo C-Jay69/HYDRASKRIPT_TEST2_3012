@@ -6,6 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "windows", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -128,8 +129,14 @@ model Book {
   // Category-specific settings
   pageSize    String?  // "6x9", "8x10"
   styleAdaptation Boolean? @default(false) // For novels
+  authorStyle String?  // Specific author style (e.g. "Hemingway", "JK Rowling")
   imageStyle  String?  // "disney", "pixar", "dreamworks", etc.
   coloringTheme String? // For coloring books
+  
+  // Audio settings
+  hasAudio    Boolean  @default(false)
+  audioVoice  String?  // "alloy", "echo", "fable", "onyx", "nova", "shimmer" (OpenAI) or "tongtong" (ZAI)
+  audioUrl    String?  // URL to full audiobook file
   
   systemPrompt String?
   userPrompt  String?
@@ -154,6 +161,7 @@ model Page {
   pageNumber  Int
   content     String?
   imageUrl    String?  // For coloring books or kids stories
+  audioUrl    String?  // Audio narration for this page
   pageType    String?  // "text", "image", "blank", "coloring"
   
   // For coloring pages

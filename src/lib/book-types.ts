@@ -2,7 +2,7 @@
  * Book Category Types and Constraints
  */
 
-export type BookCategory = 'EBOOK' | 'NOVEL' | 'KIDS_STORY' | 'COLORING_BOOK' | 'BLANK_NOTEBOOK';
+export type BookCategory = 'EBOOK' | 'NOVEL' | 'KIDS_STORY' | 'COLORING_BOOK' | 'BLANK_NOTEBOOK' | 'AUDIO_BOOK';
 export type BookStatus = 'draft' | 'generating' | 'completed' | 'published' | 'failed';
 
 export interface BookCategoryConfig {
@@ -66,6 +66,16 @@ export const BOOK_CATEGORIES: Record<BookCategory, BookCategoryConfig> = {
     maxPages: 20,
     requiresImages: true,
     features: ['customizable', 'blank pages', 'cover art options'],
+  },
+  AUDIO_BOOK: {
+    id: 'AUDIO_BOOK',
+    name: 'Audio Book',
+    description: 'Text-to-Speech audio book generation',
+    pageSize: 'N/A',
+    minPages: 1,
+    maxPages: 50,
+    requiresImages: false,
+    features: ['AI voice narration', 'mp3/wav download', 'multiple voice options'],
   },
 };
 

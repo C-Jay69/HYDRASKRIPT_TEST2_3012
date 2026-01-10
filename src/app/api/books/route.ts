@@ -13,6 +13,8 @@ interface CreateBookRequest {
   styleAdaptation?: boolean;
   imageStyle?: string;
   coloringTheme?: string;
+  authorStyle?: string;
+  hasAudio?: boolean;
 }
 
 /**
@@ -88,15 +90,17 @@ export async function POST(request: NextRequest) {
         userId: userPayload.id,
         title: body.title,
         category: body.category,
-        description: body.description,
+        description: body.description || null,
         status: 'draft',
         pageCount: body.pageCount,
         pageSize: categoryConfig.pageSize,
-        systemPrompt: body.systemPrompt,
-        userPrompt: body.userPrompt,
-        styleAdaptation: body.styleAdaptation,
-        imageStyle: body.imageStyle,
-        coloringTheme: body.coloringTheme,
+        systemPrompt: body.systemPrompt || null,
+        userPrompt: body.userPrompt || null,
+        styleAdaptation: body.styleAdaptation || false,
+        imageStyle: body.imageStyle || null,
+        coloringTheme: body.coloringTheme || null,
+        authorStyle: body.authorStyle || null,
+        hasAudio: body.hasAudio || false,
       },
     });
 
