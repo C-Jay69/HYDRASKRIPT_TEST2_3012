@@ -8,8 +8,9 @@ import { getLLMService } from '@/lib/llm-fallback-service';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const manuscriptId = params.id;
     const body = await request.json();
